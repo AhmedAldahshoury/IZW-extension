@@ -1,0 +1,25 @@
+{
+  "manifest_version": 2,
+  "name": "Next Prayer (IZW Vienna)",
+  "version": "0.4.0",
+  "description": "Shows next prayer time using IZW (Islamic Centre Vienna) annual timings.",
+  "browser_action": {
+    "default_title": "Next Prayer",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": true
+  },
+  "permissions": ["storage", "alarms", "notifications"],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "next-prayer-izw@example.com"
+    }
+  },
+  "icons": {
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}
+

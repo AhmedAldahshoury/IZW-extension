@@ -1,0 +1,284 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Next Prayer (IZW Vienna)</title>
+
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #111827;
+      --muted: rgba(17, 24, 39, 0.65);
+      --row-hover: rgba(17, 24, 39, 0.05);
+      --row-next: rgba(17, 24, 39, 0.08);
+      --btn: rgba(17, 24, 39, 0.08);
+      --btn-hover: rgba(17, 24, 39, 0.12);
+      --divider: rgba(17, 24, 39, 0.10);
+
+      --radius: 12px;
+      --pad: 12px;
+
+      /* general chips */
+      --pill-bg: rgba(17, 24, 39, 0.08);
+
+      /* Hijri ambient accents (set dynamically from JS) */
+      --accent-1: transparent;
+      --accent-2: transparent;
+
+      /* Ramadan accents (stronger / special) */
+      --ramadan-accent: rgba(245, 158, 11, 0.22); /* amber glow */
+      --ramadan-accent-2: rgba(34, 197, 94, 0.18); /* green glow */
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0b0f19;
+        --text: #e5e7eb;
+        --muted: rgba(229, 231, 235, 0.70);
+        --row-hover: rgba(229, 231, 235, 0.06);
+        --row-next: rgba(229, 231, 235, 0.10);
+        --btn: rgba(229, 231, 235, 0.10);
+        --btn-hover: rgba(229, 231, 235, 0.14);
+        --divider: rgba(229, 231, 235, 0.12);
+
+        --pill-bg: rgba(229, 231, 235, 0.10);
+      }
+    }
+
+    body {
+      margin: 0;
+      padding: var(--pad);
+      min-width: 360px;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.25;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* General Hijri month ambient background */
+    body.hijri-accent::before {
+      content: "";
+      position: absolute;
+      inset: -40px;
+      background:
+        radial-gradient(closest-side, var(--accent-1), transparent 70%),
+        radial-gradient(closest-side, var(--accent-2), transparent 75%);
+      filter: blur(22px);
+      opacity: 0.55;
+      pointer-events: none;
+    }
+
+    /* Ramadan background (stronger, overrides general) */
+    body.ramadan::before {
+      content: "";
+      position: absolute;
+      inset: -40px;
+      background:
+        radial-gradient(closest-side, var(--ramadan-accent), transparent 65%),
+        radial-gradient(closest-side, var(--ramadan-accent-2), transparent 70%);
+      filter: blur(18px);
+      opacity: 0.85;
+      pointer-events: none;
+    }
+
+    body > * { position: relative; z-index: 1; }
+
+    .header-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 0 0 2px 0;
+    }
+
+    .header {
+      font-size: 16px;
+      font-weight: 750;
+      letter-spacing: 0.2px;
+      margin: 0;
+    }
+
+    .next-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--pill-bg);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      color: var(--text);
+      opacity: 0.92;
+    }
+
+    .countdown {
+      font-size: 13px;
+      color: var(--muted);
+      margin: 0 0 6px 0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .submeta {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 0 0 10px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--pill-bg);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .list {
+      display: grid;
+      gap: 4px;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 7px 10px;
+      border-radius: var(--radius);
+      transition: background 120ms ease, opacity 120ms ease;
+    }
+
+    .row:hover { background: var(--row-hover); }
+    .row:not(.next-row) { opacity: 0.88; }
+
+    .label {
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tag {
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--pill-bg);
+      color: var(--text);
+      opacity: 0.92;
+      font-weight: 650;
+    }
+
+    .time {
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .next-row {
+      font-weight: 650;
+      background: var(--row-next);
+      opacity: 1 !important;
+    }
+
+    /* Ramadan highlights */
+    .row.suhoor {
+      outline: 1px solid rgba(34, 197, 94, 0.25);
+      background: rgba(34, 197, 94, 0.06);
+    }
+    .row.iftar {
+      outline: 1px solid rgba(245, 158, 11, 0.25);
+      background: rgba(245, 158, 11, 0.06);
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    button {
+      flex: 1;
+      padding: 9px 10px;
+      border-radius: 10px;
+      border: 0;
+      background: var(--btn);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    button:hover { background: var(--btn-hover); }
+    button:active { transform: translateY(1px); }
+
+    .footer {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 10px;
+      text-align: center;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header-row">
+    <div class="header" id="next">Loading…</div>
+    <div class="next-chip" id="next-special" style="display:none;">—</div>
+  </div>
+
+  <div class="countdown" id="countdown"></div>
+
+  <div class="submeta">
+    <span class="pill" id="greg-date">—</span>
+    <span class="pill" id="hijri-date">Hijri: —</span>
+  </div>
+
+  <div class="list">
+    <div class="row" id="row-fajr">
+      <span class="label">Fajr <span class="tag" id="tag-fajr" style="display:none;">Suhoor ends</span></span>
+      <span class="time" id="fajr">–</span>
+    </div>
+
+    <div class="row" id="row-sunrise">
+      <span class="label">Sunrise</span>
+      <span class="time" id="sunrise">–</span>
+    </div>
+
+    <div class="row" id="row-dhuhr">
+      <span class="label">Dhuhr</span>
+      <span class="time" id="dhuhr">–</span>
+    </div>
+
+    <div class="row" id="row-asr">
+      <span class="label">Asr</span>
+      <span class="time" id="asr">–</span>
+    </div>
+
+    <div class="row" id="row-maghrib">
+      <span class="label">Maghrib <span class="tag" id="tag-maghrib" style="display:none;">Iftar</span></span>
+      <span class="time" id="maghrib">–</span>
+    </div>
+
+    <div class="row" id="row-isha">
+      <span class="label">Isha</span>
+      <span class="time" id="isha">–</span>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="refresh" type="button">Refresh</button>
+  </div>
+
+  <div class="footer">IZW Vienna • Offline • No data tracking</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
+
