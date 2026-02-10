@@ -14,21 +14,15 @@
       --row-next: rgba(17, 24, 39, 0.08);
       --btn: rgba(17, 24, 39, 0.08);
       --btn-hover: rgba(17, 24, 39, 0.12);
-      --divider: rgba(17, 24, 39, 0.10);
 
       --radius: 12px;
       --pad: 12px;
 
-      /* general chips */
       --pill-bg: rgba(17, 24, 39, 0.08);
-
-      /* Hijri ambient accents (set dynamically from JS) */
       --accent-1: transparent;
       --accent-2: transparent;
-
-      /* Ramadan accents (stronger / special) */
-      --ramadan-accent: rgba(245, 158, 11, 0.22); /* amber glow */
-      --ramadan-accent-2: rgba(34, 197, 94, 0.18); /* green glow */
+      --ramadan-accent: rgba(245, 158, 11, 0.22);
+      --ramadan-accent-2: rgba(34, 197, 94, 0.18);
     }
 
     @media (prefers-color-scheme: dark) {
@@ -40,8 +34,6 @@
         --row-next: rgba(229, 231, 235, 0.10);
         --btn: rgba(229, 231, 235, 0.10);
         --btn-hover: rgba(229, 231, 235, 0.14);
-        --divider: rgba(229, 231, 235, 0.12);
-
         --pill-bg: rgba(229, 231, 235, 0.10);
       }
     }
@@ -58,7 +50,6 @@
       overflow: hidden;
     }
 
-    /* General Hijri month ambient background */
     body.hijri-accent::before {
       content: "";
       position: absolute;
@@ -71,7 +62,6 @@
       pointer-events: none;
     }
 
-    /* Ramadan background (stronger, overrides general) */
     body.ramadan::before {
       content: "";
       position: absolute;
@@ -99,6 +89,26 @@
       font-weight: 750;
       letter-spacing: 0.2px;
       margin: 0;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .icon-btn {
+      border: 0;
+      background: var(--btn);
+      color: var(--text);
+      width: 30px;
+      height: 30px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 15px;
+      line-height: 1;
+      flex: 0 0 auto;
+      padding: 0;
     }
 
     .next-chip {
@@ -187,7 +197,6 @@
       opacity: 1 !important;
     }
 
-    /* Ramadan highlights */
     .row.suhoor {
       outline: 1px solid rgba(34, 197, 94, 0.25);
       background: rgba(34, 197, 94, 0.06);
@@ -195,6 +204,12 @@
     .row.iftar {
       outline: 1px solid rgba(245, 158, 11, 0.25);
       background: rgba(245, 158, 11, 0.06);
+    }
+
+    .row.jumuah {
+      outline: 1px solid rgba(59, 130, 246, 0.32);
+      background: rgba(59, 130, 246, 0.10);
+      opacity: 1;
     }
 
     .actions {
@@ -217,6 +232,35 @@
     button:hover { background: var(--btn-hover); }
     button:active { transform: translateY(1px); }
 
+    .settings-panel {
+      margin-top: 8px;
+      padding: 8px;
+      border-radius: var(--radius);
+      background: var(--row-hover);
+      display: none;
+    }
+
+    .settings-panel.open { display: block; }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 6px 0;
+      font-size: 12px;
+    }
+
+    .setting-row input,
+    .setting-row select {
+      max-width: 120px;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--pill-bg);
+      border-radius: 8px;
+      padding: 4px 6px;
+    }
+
     .footer {
       font-size: 11px;
       color: var(--muted);
@@ -230,7 +274,10 @@
 <body>
   <div class="header-row">
     <div class="header" id="next">Loading…</div>
-    <div class="next-chip" id="next-special" style="display:none;">—</div>
+    <div class="top-actions">
+      <button class="icon-btn" id="settings-toggle" type="button" aria-label="Settings">⚙</button>
+      <div class="next-chip" id="next-special" style="display:none;">—</div>
+    </div>
   </div>
 
   <div class="countdown" id="countdown"></div>
@@ -242,43 +289,51 @@
 
   <div class="list">
     <div class="row" id="row-fajr">
-      <span class="label">Fajr <span class="tag" id="tag-fajr" style="display:none;">Suhoor ends</span></span>
+      <span class="label"><span id="label-fajr">Fajr</span> <span class="tag" id="tag-fajr" style="display:none;">Suhoor ends</span></span>
       <span class="time" id="fajr">–</span>
     </div>
 
     <div class="row" id="row-sunrise">
-      <span class="label">Sunrise</span>
+      <span class="label" id="label-sunrise">Sunrise</span>
       <span class="time" id="sunrise">–</span>
     </div>
 
     <div class="row" id="row-dhuhr">
-      <span class="label">Dhuhr</span>
+      <span class="label"><span id="label-dhuhr">Dhuhr</span> <span class="tag" id="tag-jumuah" style="display:none;">Jumu’ah</span></span>
       <span class="time" id="dhuhr">–</span>
     </div>
 
     <div class="row" id="row-asr">
-      <span class="label">Asr</span>
+      <span class="label" id="label-asr">Asr</span>
       <span class="time" id="asr">–</span>
     </div>
 
     <div class="row" id="row-maghrib">
-      <span class="label">Maghrib <span class="tag" id="tag-maghrib" style="display:none;">Iftar</span></span>
+      <span class="label"><span id="label-maghrib">Maghrib</span> <span class="tag" id="tag-maghrib" style="display:none;">Iftar</span></span>
       <span class="time" id="maghrib">–</span>
     </div>
 
     <div class="row" id="row-isha">
-      <span class="label">Isha</span>
+      <span class="label" id="label-isha">Isha</span>
       <span class="time" id="isha">–</span>
     </div>
+  </div>
+
+  <div class="settings-panel" id="settings-panel">
+    <div class="setting-row"><span id="lbl-notifications-enabled">Notifications enabled</span><input id="set-notifications-enabled" type="checkbox"></div>
+    <div class="setting-row"><span id="lbl-notify-minutes-before">Notify minutes before prayer</span><input id="set-notify-minutes-before" type="number" min="0" max="120" step="1"></div>
+    <div class="setting-row"><span id="lbl-badge-enabled">Badge enabled</span><input id="set-badge-enabled" type="checkbox"></div>
+    <div class="setting-row"><span id="lbl-hijri-correction-days">Hijri correction days</span><input id="set-hijri-correction-days" type="number" min="-2" max="2" step="1"></div>
+    <div class="setting-row"><span id="lbl-language">Language</span><select id="set-language"><option value="auto">Auto</option><option value="en">English</option><option value="ar">العربية</option></select></div>
+    <div class="setting-row"><span id="lbl-ramadan-theme-always-on">Ramadan theme always on</span><input id="set-ramadan-theme-always-on" type="checkbox"></div>
   </div>
 
   <div class="actions">
     <button id="refresh" type="button">Refresh</button>
   </div>
 
-  <div class="footer">IZW Vienna • Offline • No data tracking</div>
+  <div class="footer" id="footer">IZW Vienna • Offline • No data tracking</div>
 
   <script src="popup.js"></script>
 </body>
 </html>
-

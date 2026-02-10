@@ -1,9 +1,4 @@
 // background.js (Firefox MV2)
-// - Loads bundled JSON: data/izw_prayer_times_2026.json
-// - Computes next prayer + minutes remaining
-// - Updates badge every minute
-// - Notifications: 15 minutes before + at azan time
-// - Also exposes tomorrow timings to popup (needed for Suhoor/Fajr counter after Maghrib)
 
 const API = (typeof browser !== "undefined") ? browser : chrome;
 
@@ -11,15 +6,22 @@ let DATA = null;
 let STATE = { error: null };
 let LAST_SCHEDULED_WHEN_TS = null;
 
+const DEFAULT_SETTINGS = {
+  notificationsEnabled: true,
+  notifyMinutesBefore: 15,
+  badgeEnabled: true,
+  hijriCorrectionDays: 0,
+  language: "auto",
+  ramadanThemeAlwaysOn: false
+};
+
 const PRAYERS_ORDER = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 const KEY_MAP = { Fajr: "fajr", Dhuhr: "dhuhr", Asr: "asr", Maghrib: "maghrib", Isha: "isha" };
 
-const ALARM_PRE = "PRAYER_PRE_15";
-const ALARM_AT  = "PRAYER_AT_TIME";
+const ALARM_PRE = "PRAYER_PRE";
+const ALARM_AT = "PRAYER_AT_TIME";
 
-function pad(n) {
-  return String(n).padStart(2, "0");
-}
+function pad(n) { return String(n).padStart(2, "0"); }
 
 function todayKeyLocal() {
   const d = new Date();
@@ -45,8 +47,11 @@ function dateAtLocal(dayOffset, h, m) {
   return d;
 }
 
-function badgeAPI() {
-  return API.action || API.browserAction;
+function badgeAPI() { return API.action || API.browserAction; }
+
+async function getSettings() {
+  const r = await API.storage.local.get("settings");
+  return { ...DEFAULT_SETTINGS, ...(r.settings || {}) };
 }
 
 async function setBadgeStyle() {
@@ -57,7 +62,6 @@ async function setBadgeStyle() {
 
 async function loadDataOnce() {
   if (DATA) return;
-
   const url = API.runtime.getURL("data/izw_prayer_times_2026.json");
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to load timings JSON: ${res.status}`);
@@ -66,6 +70,7 @@ async function loadDataOnce() {
 
 function computeNext(todayKey, timesToday) {
   const now = new Date();
+  const isFriday = now.getDay() === 5;
 
   for (const prayer of PRAYERS_ORDER) {
     const key = KEY_MAP[prayer];
@@ -75,20 +80,21 @@ function computeNext(todayKey, timesToday) {
     const { h, m } = parseHHMM(t);
     const when = dateAtLocal(0, h, m);
     if (when > now) {
+      const isJumuah = isFriday && key === "dhuhr";
       return {
-        name: prayer,
+        name: isJumuah ? "Jumu'ah" : prayer,
         key,
         at: t,
         whenTs: when.getTime(),
         minutesLeft: Math.ceil((when - now) / 60000),
+        isJumuah
       };
     }
   }
 
-  // fallback: tomorrow Fajr
   const tomorrowKey = addDays(todayKey, 1);
   const timesTomorrow = DATA?.[tomorrowKey];
-  const t = timesTomorrow?.["fajr"];
+  const t = timesTomorrow?.fajr;
   if (t) {
     const { h, m } = parseHHMM(t);
     const when = dateAtLocal(1, h, m);
@@ -99,6 +105,7 @@ function computeNext(todayKey, timesToday) {
       whenTs: when.getTime(),
       minutesLeft: Math.ceil((when - now) / 60000),
       tomorrowKey,
+      isJumuah: false
     };
   }
 
@@ -109,32 +116,40 @@ function computeBadgeText(next) {
   if (!next) return "";
   const mins = next.minutesLeft;
   if (mins <= 0) return "NOW";
-  if (mins <= 90) return `${mins}m`;
+  if (mins <= 99) return `${mins}m`;
+  if (next.isJumuah) return "JUM";
   return next.name.slice(0, 3).toUpperCase();
 }
 
-async function updateBadge(next) {
+async function updateBadge(next, settings) {
   const api = badgeAPI();
   if (!api?.setBadgeText) return;
   await setBadgeStyle();
+  if (!settings.badgeEnabled) {
+    await api.setBadgeText({ text: "" });
+    return;
+  }
   await api.setBadgeText({ text: computeBadgeText(next) });
 }
 
-async function schedulePrayerNotifications(next) {
+async function schedulePrayerNotifications(next, settings) {
   await API.alarms.clear(ALARM_PRE);
   await API.alarms.clear(ALARM_AT);
 
-  if (!next?.whenTs) return;
+  if (!settings.notificationsEnabled || !next?.whenTs) {
+    LAST_SCHEDULED_WHEN_TS = null;
+    return;
+  }
 
   const now = Date.now();
   const at = next.whenTs;
-  const pre = at - 15 * 60 * 1000;
+  const pre = at - (Math.max(0, Number(settings.notifyMinutesBefore) || 0) * 60 * 1000);
 
   if (LAST_SCHEDULED_WHEN_TS === at) return;
   LAST_SCHEDULED_WHEN_TS = at;
 
   if (pre > now) await API.alarms.create(ALARM_PRE, { when: pre });
-  if (at > now)  await API.alarms.create(ALARM_AT,  { when: at });
+  if (at > now) await API.alarms.create(ALARM_AT, { when: at });
 }
 
 function notify(title, message) {
@@ -142,30 +157,31 @@ function notify(title, message) {
     type: "basic",
     iconUrl: "icon128.png",
     title,
-    message,
+    message
   });
 }
 
 API.alarms.onAlarm.addListener(async (alarm) => {
   await refreshState();
   const next = STATE?.next;
-  if (!next) return;
+  const settings = STATE?.settings || DEFAULT_SETTINGS;
+  if (!next || !settings.notificationsEnabled) return;
 
-  if (alarm.name === ALARM_PRE) notify("Prayer reminder", `${next.name} in 15 minutes (${next.at})`);
-  if (alarm.name === ALARM_AT)  notify("Prayer time", `${next.name} (${next.at})`);
+  if (alarm.name === ALARM_PRE) notify("Prayer reminder", `${next.name} in ${settings.notifyMinutesBefore} minutes (${next.at})`);
+  if (alarm.name === ALARM_AT) notify("Prayer time", `${next.name} (${next.at})`);
 });
 
 async function refreshState() {
   try {
     await loadDataOnce();
 
+    const settings = await getSettings();
     const todayKey = todayKeyLocal();
     const timesToday = DATA?.[todayKey];
     if (!timesToday) throw new Error(`No timings for ${todayKey}`);
 
     const tomorrowKey = addDays(todayKey, 1);
     const timesTomorrow = DATA?.[tomorrowKey] || null;
-
     const next = computeNext(todayKey, timesToday);
 
     STATE = {
@@ -174,13 +190,14 @@ async function refreshState() {
       timesToday,
       tomorrowKey,
       timesTomorrow,
-      next
+      next,
+      settings
     };
 
-    await updateBadge(next);
-    await schedulePrayerNotifications(next);
+    await updateBadge(next, settings);
+    await schedulePrayerNotifications(next, settings);
   } catch (e) {
-    STATE = { error: String(e?.message || e) };
+    STATE = { error: String(e?.message || e), settings: await getSettings() };
 
     await setBadgeStyle();
     const api = badgeAPI();
@@ -206,6 +223,9 @@ API.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   sendResponse({ ok: false });
 });
 
+API.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.settings) refreshState();
+});
+
 refreshState();
 setInterval(refreshState, 20 * 1000);
-
