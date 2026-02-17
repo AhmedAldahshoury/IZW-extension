@@ -54,7 +54,32 @@ try {
   if ($zipManifest.action.default_popup) { $required += $zipManifest.action.default_popup }
   if ($zipManifest.options_ui.page) { $required += $zipManifest.options_ui.page }
   if ($zipManifest.background.service_worker) { $required += $zipManifest.background.service_worker }
+  if ($zipManifest.background.scripts) { $required += $zipManifest.background.scripts }
   $required += $zipManifest.icons.PSObject.Properties.Value
+
+  if ($zipManifest.default_locale) {
+    $localeFile = "_locales/$($zipManifest.default_locale)/messages.json"
+    $required += $localeFile
+
+    $manifestJson = $zipManifestRaw
+    $msgMatches = [regex]::Matches($manifestJson, '__MSG_([A-Za-z0-9_@]+)__') | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique
+    if ($msgMatches.Count -gt 0 -and $entries -contains $localeFile) {
+      $localeEntry = $zip.GetEntry($localeFile)
+      $localeReader = New-Object System.IO.StreamReader($localeEntry.Open())
+      $localeRaw = $localeReader.ReadToEnd()
+      $localeReader.Dispose()
+      $localeJson = $localeRaw | ConvertFrom-Json
+      $localeKeys = @($localeJson.PSObject.Properties.Name)
+
+      $missingLocaleKeys = @()
+      foreach ($key in $msgMatches) {
+        if ($localeKeys -notcontains $key) { $missingLocaleKeys += $key }
+      }
+      if ($missingLocaleKeys.Count -gt 0) {
+        throw ('Verification failed: missing locale message keys in ' + $localeFile + ': ' + ($missingLocaleKeys -join ', '))
+      }
+    }
+  }
 
   $missing = @()
   foreach ($path in $required) {

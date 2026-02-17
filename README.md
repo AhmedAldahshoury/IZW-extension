@@ -17,7 +17,7 @@ Firefox Manifest V3 extension that shows the next prayer time for IZW Vienna, wi
 ## Troubleshooting temporary add-on install
 - Make sure you load **`src/manifest.json`** (not the repository root and not a nested old folder).
 - If Firefox shows a generic install error, open **Browser Console** (`Ctrl+Shift+J`) right after loading to see the exact manifest validation message.
-- This repo targets Firefox MV3 with service worker support (`strict_min_version: 121.0`), so use Firefox 121+ for local testing.
+- This repo targets Firefox MV3 with service worker support (`strict_min_version: 140.0`), so use Firefox 140+ for local testing.
 
 ## Permissions used
 - `storage`: save extension settings locally.

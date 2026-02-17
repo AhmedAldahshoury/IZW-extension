@@ -55,12 +55,30 @@ with zipfile.ZipFile(zip_path) as zf:
     required=[]
     action=(manifest.get('action') or {}).get('default_popup')
     options=(manifest.get('options_ui') or {}).get('page')
-    bg=(manifest.get('background') or {}).get('service_worker')
+    bg=manifest.get('background') or {}
     if action: required.append(action)
     if options: required.append(options)
-    if bg: required.append(bg)
+    service_worker=bg.get('service_worker')
+    if service_worker: required.append(service_worker)
+    for script in (bg.get('scripts') or []):
+      required.append(script)
     for icon in (manifest.get('icons') or {}).values():
       required.append(icon)
+
+    default_locale = manifest.get('default_locale')
+    if default_locale:
+      locale_file = f"_locales/{default_locale}/messages.json"
+      required.append(locale_file)
+      manifest_text = json.dumps(manifest)
+      if '__MSG_' in manifest_text:
+        missing_msgs = []
+        locale_data = json.loads(zf.read(locale_file).decode('utf-8')) if locale_file in names else {}
+        import re
+        for key in sorted(set(re.findall(r'__MSG_([A-Za-z0-9_@]+)__', manifest_text))):
+          if key not in locale_data:
+            missing_msgs.append(key)
+        if missing_msgs:
+          raise SystemExit('Verification failed: missing locale message keys in ' + locale_file + ': ' + ', '.join(missing_msgs))
 
     missing=[p for p in required if p not in names]
     if missing:
