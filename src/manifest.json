@@ -22,7 +22,7 @@
   ],
   "host_permissions": [],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'"
+    "extension_pages": "script-src 'self'; object-src 'none'"
   },
   "browser_specific_settings": {
     "gecko": {
