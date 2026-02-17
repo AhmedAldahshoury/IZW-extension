@@ -47,7 +47,8 @@ const T = {
     arabic: "Arabic",
     ramadanThemeAlwaysOn: "Ramadan theme always on",
     prayerReminder: "Prayer reminder",
-    prayerTime: "Prayer time"
+    prayerTime: "Prayer time",
+    settingsPage: "Settings page"
   },
   ar: {
     loading: "جاري التحميل…",
@@ -80,7 +81,8 @@ const T = {
     arabic: "العربية",
     ramadanThemeAlwaysOn: "تفعيل سمة رمضان دائمًا",
     prayerReminder: "تذكير بالصلاة",
-    prayerTime: "حان وقت الصلاة"
+    prayerTime: "حان وقت الصلاة",
+    settingsPage: "صفحة الإعدادات"
   }
 };
 
@@ -112,6 +114,7 @@ function applyLanguage() {
   setText("tag-maghrib", tr("iftar"));
   setText("tag-jumuah", tr("jumuah"));
   setText("refresh", tr("refresh"));
+  setText("open-options", tr("settingsPage"));
   setText("footer", tr("footer"));
   document.getElementById("settings-toggle")?.setAttribute("aria-label", tr("settings"));
 
@@ -395,3 +398,8 @@ document.getElementById("refresh")?.addEventListener("click", async () => {
 
 setupSettingsUI();
 render();
+
+
+document.getElementById("open-options")?.addEventListener("click", () => {
+  API.runtime.openOptionsPage();
+});

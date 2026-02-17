@@ -1,5 +1,3 @@
-// background.js (Firefox MV2)
-
 const API = (typeof browser !== "undefined") ? browser : chrome;
 
 let DATA = null;
@@ -20,6 +18,7 @@ const KEY_MAP = { Fajr: "fajr", Dhuhr: "dhuhr", Asr: "asr", Maghrib: "maghrib", 
 
 const ALARM_PRE = "PRAYER_PRE";
 const ALARM_AT = "PRAYER_AT_TIME";
+const ALARM_REFRESH = "STATE_REFRESH";
 
 function pad(n) { return String(n).padStart(2, "0"); }
 
@@ -47,17 +46,14 @@ function dateAtLocal(dayOffset, h, m) {
   return d;
 }
 
-function badgeAPI() { return API.action || API.browserAction; }
-
 async function getSettings() {
   const r = await API.storage.local.get("settings");
   return { ...DEFAULT_SETTINGS, ...(r.settings || {}) };
 }
 
 async function setBadgeStyle() {
-  const api = badgeAPI();
-  if (!api?.setBadgeBackgroundColor) return;
-  await api.setBadgeBackgroundColor({ color: "#2b2f36" });
+  if (!API.action?.setBadgeBackgroundColor) return;
+  await API.action.setBadgeBackgroundColor({ color: "#2b2f36" });
 }
 
 async function loadDataOnce() {
@@ -122,14 +118,13 @@ function computeBadgeText(next) {
 }
 
 async function updateBadge(next, settings) {
-  const api = badgeAPI();
-  if (!api?.setBadgeText) return;
+  if (!API.action?.setBadgeText) return;
   await setBadgeStyle();
   if (!settings.badgeEnabled) {
-    await api.setBadgeText({ text: "" });
+    await API.action.setBadgeText({ text: "" });
     return;
   }
-  await api.setBadgeText({ text: computeBadgeText(next) });
+  await API.action.setBadgeText({ text: computeBadgeText(next) });
 }
 
 async function schedulePrayerNotifications(next, settings) {
@@ -152,24 +147,14 @@ async function schedulePrayerNotifications(next, settings) {
   if (at > now) await API.alarms.create(ALARM_AT, { when: at });
 }
 
-function notify(title, message) {
-  API.notifications.create({
+async function notify(title, message) {
+  await API.notifications.create({
     type: "basic",
     iconUrl: "icon128.png",
     title,
     message
   });
 }
-
-API.alarms.onAlarm.addListener(async (alarm) => {
-  await refreshState();
-  const next = STATE?.next;
-  const settings = STATE?.settings || DEFAULT_SETTINGS;
-  if (!next || !settings.notificationsEnabled) return;
-
-  if (alarm.name === ALARM_PRE) notify("Prayer reminder", `${next.name} in ${settings.notifyMinutesBefore} minutes (${next.at})`);
-  if (alarm.name === ALARM_AT) notify("Prayer time", `${next.name} (${next.at})`);
-});
 
 async function refreshState() {
   try {
@@ -200,8 +185,7 @@ async function refreshState() {
     STATE = { error: String(e?.message || e), settings: await getSettings() };
 
     await setBadgeStyle();
-    const api = badgeAPI();
-    if (api?.setBadgeText) await api.setBadgeText({ text: "!" });
+    if (API.action?.setBadgeText) await API.action.setBadgeText({ text: "!" });
 
     await API.alarms.clear(ALARM_PRE);
     await API.alarms.clear(ALARM_AT);
@@ -209,23 +193,41 @@ async function refreshState() {
   }
 }
 
-API.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (msg?.type === "GET_STATE") {
-    sendResponse(STATE);
+API.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name === ALARM_REFRESH) {
+    await refreshState();
     return;
   }
 
+  await refreshState();
+  const next = STATE?.next;
+  const settings = STATE?.settings || DEFAULT_SETTINGS;
+  if (!next || !settings.notificationsEnabled) return;
+
+  if (alarm.name === ALARM_PRE) await notify("Prayer reminder", `${next.name} in ${settings.notifyMinutesBefore} minutes (${next.at})`);
+  if (alarm.name === ALARM_AT) await notify("Prayer time", `${next.name} (${next.at})`);
+});
+
+API.runtime.onMessage.addListener((msg) => {
+  if (msg?.type === "GET_STATE") return Promise.resolve(STATE);
+
   if (msg?.type === "FORCE_REFRESH") {
-    refreshState().then(() => sendResponse({ ok: true }));
-    return true;
+    return refreshState().then(() => ({ ok: true }));
   }
 
-  sendResponse({ ok: false });
+  return Promise.resolve({ ok: false });
 });
 
 API.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && changes.settings) refreshState();
 });
 
-refreshState();
-setInterval(refreshState, 20 * 1000);
+async function bootstrap() {
+  await API.alarms.create(ALARM_REFRESH, { periodInMinutes: 1 });
+  await refreshState();
+}
+
+API.runtime.onStartup.addListener(bootstrap);
+API.runtime.onInstalled.addListener(bootstrap);
+
+bootstrap();
