@@ -150,7 +150,7 @@ async function schedulePrayerNotifications(next, settings) {
 async function notify(title, message) {
   await API.notifications.create({
     type: "basic",
-    iconUrl: "icon128.png",
+    iconUrl: "assets/icons/icon128.png",
     title,
     message
   });

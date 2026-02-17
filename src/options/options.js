@@ -117,7 +117,18 @@ function applyLanguageAndMeta() {
 
   const isFriday = new Date().getDay() === 5;
   const weekday = document.getElementById("weekday-meta");
-  weekday.innerHTML = isFriday ? `${tr("friday")} <span class="badge">${tr("jumuahBadge")}</span>` : new Date().toLocaleDateString(currentLang === "ar" ? "ar" : undefined, { weekday: "long" });
+  const weekdayLabel = new Date().toLocaleDateString(currentLang === "ar" ? "ar" : undefined, { weekday: "long" });
+
+  weekday.textContent = "";
+  if (isFriday) {
+    weekday.append(document.createTextNode(`${tr("friday")} `));
+    const badge = document.createElement("span");
+    badge.className = "badge";
+    badge.textContent = tr("jumuahBadge");
+    weekday.appendChild(badge);
+  } else {
+    weekday.textContent = weekdayLabel;
+  }
 }
 
 function applySettingsToForm() {
