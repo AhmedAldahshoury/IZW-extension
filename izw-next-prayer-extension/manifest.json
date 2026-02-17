@@ -9,13 +9,20 @@
     "default_popup": "popup.html"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "scripts": [
+      "background.js"
+    ]
   },
   "options_ui": {
     "page": "options.html",
     "open_in_tab": true
   },
-  "permissions": ["storage", "alarms", "notifications"],
+  "permissions": [
+    "storage",
+    "alarms",
+    "notifications"
+  ],
   "host_permissions": [],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'"
