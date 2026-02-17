@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>IZW Settings</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <main class="card">
+    <h1 id="title">IZW Settings</h1>
+    <p class="meta" id="hijri-meta">Hijri: —</p>
+    <p class="meta" id="weekday-meta">—</p>
+
+    <div class="setting-row"><span id="lbl-notifications-enabled">Notifications enabled</span><input id="set-notifications-enabled" type="checkbox"></div>
+    <div class="setting-row"><span id="lbl-notify-minutes-before">Notify minutes before prayer</span><input id="set-notify-minutes-before" type="number" min="0" max="120" step="1"></div>
+    <div class="setting-row"><span id="lbl-badge-enabled">Badge enabled</span><input id="set-badge-enabled" type="checkbox"></div>
+    <div class="setting-row"><span id="lbl-hijri-correction-days">Hijri correction days</span><input id="set-hijri-correction-days" type="number" min="-2" max="2" step="1"></div>
+    <div class="setting-row"><span id="lbl-language">Language</span><select id="set-language"><option value="auto">Auto</option><option value="en">English</option><option value="ar">العربية</option></select></div>
+    <div class="setting-row"><span id="lbl-ramadan-theme-always-on">Ramadan theme always on (debug)</span><input id="set-ramadan-theme-always-on" type="checkbox"></div>
+
+    <p class="hint" id="storage-hint">All settings are stored locally in browser extension storage.</p>
+  </main>
+
+  <script src="options.js"></script>
+</body>
+</html>
